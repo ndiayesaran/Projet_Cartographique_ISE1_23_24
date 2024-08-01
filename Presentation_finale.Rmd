@@ -1,0 +1,583 @@
+---
+title: "CARTOGRAPHIE AVEC R"
+author: "KPAKOU M'Mounéné & NDIAYE Saran & TRAORE Mohamed </br> </br> Sous la supervision de :</br> HEMA Aboubacar</br> Research Analyst "
+date: "`r Sys.Date()`"
+output: slidy_presentation
+
+---
+
+```{r echo=FALSE}
+rm(list = ls())
+```
+
+
+```{r echo=FALSE,comment="",warning=FALSE,message=FALSE}
+library(sp)
+library(sf)
+library(tmap)
+library(dplyr)
+library(ggplot2)
+library(gouvdown) #remotes::install_github("spyrales/gouvdown")
+library(ggspatial)
+library(ggiraph)
+library(mapsf)
+library(leaflet)
+library(leaflet.extras)
+library(raster)
+library(geodata) #install.packages("geodata")
+```
+
+# Concepts  de bases {.tabset}
+
+## Introduction
+Processus de manipulation des données spatiales
+<div style="text-align: center;">
+  <img src="Images/workflow.png" alt="Processus de manipulation des données spatiales" style="width: 70%;" />
+</div>
+
+# Données spatiales {.tabset} 
+## Modèles de données {.tabset}  
+- **Données vectorielles :** les points,les lignes,les polygones,...
+
+<div style="text-align: center;">
+  <img src="Images/vector.jpg" alt="" style="width: 50%;" />
+</div>
+
+ </br>
+   - **Formats :** Shapefile (contient les fichiers d'extension *.dbf*,*.shx*,*.sbn*, *.sbx*,*.prj*); GeoJSON;
+   
+- **Données raster :** 
+Le modèle de données spatiales raster représente le monde avec une grille continue de cellules (souvent également appelées pixels). Ce modèle de données fait souvent référence à des grilles dites régulières, dans lesquelles chaque cellule a la même taille constante.</br>
+Le format le plus courant pour sauvegarder ces fichiers sont par exemple le format *GeoTIFF*.
+
+<div style="text-align: center;">
+  <img src="Images/Raster.png" alt="" style="width: 60%;" />
+</div>
+
+# Système de coordonnées géographiques{.tabset} 
+
+Les systèmes de référence de coordonnées géographiques identifient n'importe quel emplacement sur la surface de la Terre à l'aide de deux valeurs : la longitude et la latitude
+</br>
+Sur R, pour créer un CRS on utilise la fonction CRS() du package sp. Par exemple :
+```{r eval=FALSE}
+
+crs <- CRS("+proj=utm +datum=WGS84 +ellps=WGS84")
+```
+
+**Identification du système de coordonnées (CRS) d’un objet `sf`** </br>
+-La fonction   `st_crs` permet d’identifier le système de coordonnées d’un objet `sf`
+
+```{r eval=FALSE}
+st_crs(objetspa)
+```
+**Modification du système de coordonnées (CRS) d’un objet sf** </br>
+On peut modifier le « CRS » d’un objet `sf` dès lors que celui-ci est absent ou incorrect.
+```{r eval=FALSE}
+st_crs(objetspa)=newcrs
+```
+
+Pour convertir des données d’un CRS à un autre, on peut utiliser la fonction `st_transform()`
+```{r eval=FALSE}
+transformed_data <- st_transform(data, crs_new)
+```
+
+
+# Opérations sur les données non spatiales
+
+**Passage de données non spatiales à des données de classe “Spatial”**
+
+Nous allons utiliser dans la base de données **ACLED**
+```{r }
+acled_df <- read.csv("Data/ACLED-Western_Africa.csv")
+head(acled_df, 2)
+```
+
+
+- Les packages `sp`  et `sf` pour les données vectorielles </br>
+- Le package `raster` pour les rasters . 
+
+# **Classe `sp`**
+
+- Utilisation la fonction **coordinates()** pour passer d’un objet de classe data.frame, à un objet de classe “Spatial” `sp`
+
+```{r}
+library(sp)
+acled_sp <- acled_df
+coordinates(acled_sp) <- ~longitude + latitude
+class(acled_sp)
+```
+
+- Classe des objets spatiaux:
+
+ -**SpatialPointsDataFrame**(pour les points).</br>
+ -**SpatialLinesDataFrame** (pour les objets de type ligne brisée comme les routes).</br>      
+ -**SpatialPolygonsDataFrame** (pour les objets de type polygone comme les contours administratifs). 
+
+```{r}
+str(acled_sp)
+```
+Un objet SpatialPointsDataFrame est constitué des 5 attributs suivants :</br>
+• **data** : le jeu de données au format data.frame,</br>
+• **coords.nrs** : indique le numéro des colonnes indiquant les localisations géographiques dans l’objet de départ (ici acled_sp),</br>
+• **coords** : les variables de géolocalisation,</br>
+• **bbox** (pour “bounding box” en anglais) : une matrice qui indique les coordonnées de la fenêtre qui permet d’englober l’ensemble des objets spatiaux,</br>
+• **proj4string** : un objet de classe CRS qui détermine le CRS utilisé pour représenter les objets spatiaux.</br>
+Pour accéder aux différents élements qui constituent ce type d’objet, on utilise le symbole @. Par exemple, pour accéder uniquement au data.frame, on fait :
+
+```{r}
+head(acled_sp@data, 2)
+```
+```{r}
+head(acled_sp@coords, 2)
+```
+
+# **Classe `sf`**
+Pour transformer un objet de classe data.frame (ou alors de type “Spatial”, c’est-à-dire **SpatialPointsDataFrame**, **SpatialLinesDataFrame** ou **SpatialPolygonsDataFrame**) en objet de classe `sf`, on utilise la fonction **st_as_sf()** de la manière suivante :
+```{r}
+library(sf)
+acled_sf <- st_as_sf(acled_df, coords = c("longitude", "latitude"))
+class(acled_sf)
+```
+
+- Les différents types de géometries:</br> 
+•**POINT** : un point unique,</br>
+• **LINESTRING** : une séquence de points reliées par des traits,</br>
+• **POLYGON** : une séquence de points définissant un polygone,</br>
+• **MULTIPOINT** : plusieurs points,</br>
+• **MULTILINESTRING** : plusieurs lignes,</br>
+• **MULTIPOLYGON** : plusieurs polygones</br>
+• **GEOMETRYCOLLECTION** : un mélange des géométries vues précédemment.</br>
+
+<div style="text-align: center;">
+  <img src="Images/geometries.png" alt="" style="width: 50%;" />
+</div>
+
+# Manipulation des données spatiaux {.tabset}
+## Méthodes sp
+-Les Méthodes de manipulation des objets sp : </br>
+-**Objets sp**
+```{r comment=""}
+methods(class = "Spatial")
+```
+
+# Méthodes sf
+-Les Méthodes de manipulation des objets sf : </br>
+- **Objets sf**
+```{r}
+methods(class = "sf")
+```
+
+# Operations sur les géometries {.tabset}
+
+### Package `sf` {.tabset}
+Une question plus spécifique du point de vue de R est « pourquoi utiliser le package `sf` » ? Les raisons sont nombreuses (liées aux avantages du modèle à fonctionnalités simples) :
+•	Lecture et écriture rapides des données </br>
+•	Performances de traçage améliorées </br>
+•	les objets `sf` peuvent être traités comme des trames de données dans la plupart des opérations </br>
+•	les noms de fonctions `sf` sont relativement cohérents et intuitifs (ils commencent tous par st_) </br>
+•	Les fonctions `sf` peuvent être combinées avec l' |>opérateur et fonctionnent bien avec la collection Tidyverse de packages R. </br>
+
+# Operations {.tabset}
+
+**Union, intersection, différence, etc. sur les géométries**
+
+Avec la norme sf, les fonctions qui peuvent être utiles pour travailler sur les géométries sont :</br>
+• `	st_intersection(A, B)` : l’intersection des géométries A et B </br> 
+•	`st_union(A, B)` : l’union des géométries A et B </br>
+•	`st_difference(A, B)` : la géométrie de A auquel on enlève la géométrie de B </br>
+•	`st_convex_hull(x)` : détermine une enveloppe convexe de x </br>
+•	`st_area(x) `: détermine l’aire de x </br>
+•	`st_buffer(x)`: détermine un tampon de x. </br>
+<div style="text-align: center;">
+  <img src="Images/operations.png" alt="" style="width: 50%;" />
+</div>
+
+
+# *Union simple*
+
+```{r message=FALSE,comment="",warning=FALSE}
+sen <- suppressMessages(st_read("Data/gadm41_SEN_shp/gadm41_SEN_2.shp"))
+sen_u <- st_union(sen)
+plot(st_geometry(sen_u), col="lightblue")
+plot(st_geometry(sen_u), add=T, lwd=2, border = "red")
+
+```
+
+# *Zone tampon*
+
+```{r message=FALSE,comment="",warning=FALSE}
+Diourbel <- sen[sen$NAME_2 == "Diourbel", ]
+Diourbel_b <- st_buffer(x = Diourbel, dist = 5000)
+plot(st_geometry(sen), col = "lightblue")
+plot(st_geometry(Diourbel), add = TRUE, lwd = 2)
+plot(st_geometry(Diourbel_b), add = TRUE, lwd = 2, border = "red")
+
+```
+
+
+# *Intersection de polygones* 
+Pour ce faire on crée un polygone </br>
+```{r }
+m <- rbind(c(-16.5, 13.5), c(-16.5, 14.5), c(-15.5, 14.5), 
+           c(-15.5, 13.5), c(-16.5, 13.5))
+polygone <- st_sf(st_sfc(st_polygon(list(m))), crs = st_crs(sen))
+plot(st_geometry(sen))
+plot(polygone, border = "red", lwd = 2, add = TRUE)
+```
+
+- La fonction `	st_intersection()` extrait la partie de mtq qui s’intersecte avec le polygone créé.
+```{r message=FALSE,comment="",warning=FALSE}
+inter <- st_intersection(x = sen, y = polygone)
+plot(st_geometry(sen))
+plot(st_geometry(inter), col = "red", border = "green", add = TRUE)
+```
+
+
+# Cartes statiques{.center}
+<div style="text-align: center;">
+  <img src="Images/mf_map.jpeg" alt="mf_map" style="width: 40%;" />
+</div>
+# Avec `ggplot 2` {.tabset}
+
+## **Les cartes choroplèthe**
+
+
+Le premier exemple que nous allons pouvoir voir, c'est une carte choroplèthe, càd en aplat de couleur, adaptée à la représentation d'indicateurs intensifs (%, densité...).
+
+```{r message=FALSE, echo=FALSE, eval=TRUE, warning=FALSE}
+
+# Load the World dataset
+data("World")
+
+# Create maps with different projections
+wgs_84 <- tm_shape(World, projection = st_crs(4326)) + 
+  tm_polygons() + 
+  tm_layout("Le monde en projection WGS84", inner.margins = c(0, 0, .1, 0), title.size = .8)
+
+robin <- tm_shape(World, projection = st_crs("+proj=wintri")) + 
+  tm_polygons() +
+  tm_layout("Le monde en projection Winkel-Tripel", inner.margins = c(0, 0, .1, 0), title.size = .8)
+
+# Ensure the 'name' column is treated as a character vector
+World$name <- as.character(World$name)
+
+# Filter for specific countries
+uemoa_sf <- World %>% 
+  filter(name %in% c("Mali", "Senegal", "Benin", "Burkina Faso", "Togo", "Niger", "Guinea-Bissau", "Cote d'Ivoire"))
+# calcul des indicateurs a représenter
+  uemoa_sf = mutate(uemoa_sf, poids_pop_a_part = pop_est / sum(pop_est) * 100)
+
+```
+
+
+```{r message=FALSE, cart_choro, fig.height=5, fig.width=12, cache=TRUE}
+library(ggplot2)
+ggplot(data = uemoa_sf) +
+  geom_sf(mapping = aes(fill = pop_est_dens), color = "white")
+```
+
+## **Les cartes à ronds proportionnels**
+- Utilisation de La fonction  `stat_sf_coordinates()`  permet d'extraire les coordonnées d'un objet 'sf' avant de produire le calque.
+
+
+```{r message=FALSE, cart_prop, fig.height=5, fig.width=12, cache=TRUE}
+library(ggplot2)
+carte_ronds_prop <- ggplot(data = uemoa_sf) +
+  geom_sf() +
+  stat_sf_coordinates(mapping = aes(size = pop_est, color = poids_pop_a_part))
+
+carte_ronds_prop
+
+```
+
+### **Ajout du titre ,legende,flêche pole nord...**</br>
+- *Utilisation des fonction *:</br>
+-`labs()` pour les labels </br>
+-`title` pour le tire, `subtitle` pour  le sous-titre et `caption` le bas de page . </br>
+-`guide_xx()` et `guides()` permettent de modifier finement la légende. </br>
+-`annotation_scale()` et `annotation_north_arrow()` pour ajouter l' échelle et la flèche du nord.
+
+```{r message=FALSE, echo=FALSE, eval=TRUE, fig.height=5, fig.width=10, warning=FALSE}
+
+carte_ronds_prop2 <- carte_ronds_prop +
+  labs(
+    title = "Population par pays",
+    size = "Nombre d'habitants",
+    color = "Poids population\ncomptée à part (%)"
+  ) +
+  guides(color = guide_legend(
+    direction = "horizontal",
+    order = 1,
+    title.position = "top",
+    title.hjust = 0.5,
+    nrow = 1,
+    label.position = "bottom"
+  )) +
+  theme(legend.position = "left")+
+  scale_color_gouv_continuous(palette = "pal_gouv_i", reverse = FALSE) +
+  scale_size_continuous(labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
+  annotation_scale(location = "br", line_width = .5) +
+  annotation_north_arrow(location = "tl", height = unit(0.7, "cm"), width = unit(0.7, "cm"))
+
+carte_ronds_prop2
+```
+
+# Avec `mf_map`  {.tabset}
+La fonction `mf_map()` est la fonction centrale du package `mapsf` . Elle permet de réaliser la
+plupart des représentations usuelles en cartographie. Ces arguments principaux sont :</br>
+• **x**, un objet sf ;</br>
+• **var**, le nom de la variable à représenter ;</br>
+• **type**, le type de représentation.</br>
+Utilisée sans précision de type, la fonction `mf_map()` affche simplement les couches spatiales.
+
+
+**Carte de symboles proportionnels**
+
+```{r}
+# uemoa
+mf_map(x = uemoa_sf)
+# Symboles proportionnels
+mf_map(
+x = uemoa_sf,
+var = "pop_est",
+type = "prop",
+leg_title = "Population totale"
+)
+mf_label(
+x = uemoa_sf,
+var = "name",
+col= "black",
+halo = TRUE,
+overlap = FALSE,
+lines = FALSE
+)
+# Titre
+mf_title("Distribution de la population dans uemoa")
+```
+
+**Les cartes choroplèthe**
+```{r}
+mf_map(x = uemoa_sf,
+var = "pop_est_dens",
+type = "choro",
+breaks = "quantile",
+nbreaks = 6,
+pal = "Dark Mint",
+lwd = 1,
+leg_title = "Densité de population",
+leg_val_rnd = 0,
+leg_pos = "topleft"
+
+)
+mf_label(
+x = uemoa_sf,
+var = "name",
+col= "black",
+halo = TRUE,
+overlap = FALSE,
+lines = FALSE
+)
+mf_title("Distribution de la population dans l'uemoa")
+```
+
+# Avec `tmap`  {.tabset}
+La syntaxe de `tmap` est similaire à celle de ggplot2. Cela inclut une séparation stricte entre les données et l’esthétique. Au début, `tm_shape()`  est transmis un ensemble de données, suivi d'un ou plusieurs niveaux qui définissent le type d'affichage. Les exemples sont `tm_fill()`et `tm_dots()`pour tracer des données sous forme de polygones ou de points.</br>
+
+**Exemple de graphique avec `tmap`**
+
+```{r}
+library(tmap)
+# plot
+tm_shape(uemoa_sf) +
+  tm_polygons("pop_est_dens", palette = "-Blues", 
+    title = "Densité de population", contrast = 0.7, border.col = "black", id = "name") +
+  tm_text("name", col = "yellow") 
+```
+
+# Cartes dynamiques {.tabset}
+
+La représentation de données spatiales se veut de plus en plus interactive, et quoi de mieux qu’une carte pour illustrer son propos lorsque l’on souhaite transmettre une information géographique ? </br>
+
+# tmap {.tabset} 
+Nous pouvons egalemet faire des cartes dynamiques avec le package `tmap`
+```{r}
+tmap_mode("view")
+tm_shape(uemoa_sf) +
+  tm_polygons("pop_est_dens", palette = "-Blues", 
+    title = "Densité de population", contrast = 0.7, border.col = "black", id = "name",
+    popup.vars="pop_est") +
+  tm_text("name", col = "yellow") 
+tmap_mode("plot")
+```
+
+# leaflet {.tabset} 
+Nous allons utiliser ici le package *leaflet*
+
+```{r echo=FALSE, message=FALSE,comment="",warning=FALSE }
+donnees_uemoa <- suppressMessages(st_read("Data/base_evmt.shp"))
+senegal_shp <- subset(donnees_uemoa, GID_0 == "SEN")
+senegal <- subset(acled_sf,pays=="Senegal")
+```
+
+```{r message=FALSE,comment="",warning=FALSE }
+# Créer une palette de couleurs en fonction du nombre d'attaques
+palette_couleurs <- colorQuantile("YlOrRd", domain = uemoa_sf$pop_est)
+
+carte <- leaflet(data = uemoa_sf) %>%
+  addTiles() %>%
+  addPolygons(
+    color = "#fff",   # Couleur des bordures
+    weight = 1,          # Épaisseur des bordures
+    fillOpacity = 0.6,   # Opacité du remplissage
+    fillColor = ~palette_couleurs(uemoa_sf$pop_est),
+    label = paste(uemoa_sf[['name']], ": ", uemoa_sf$pop_est) 
+  ) %>%
+  addLegend(
+    title = "Population des pays de l'uemoa",
+    pal = palette_couleurs, values = uemoa_sf$pop_est
+  ) %>%
+  addMiniMap(width = 150, height = 150) %>% # minimap
+  addMeasure(
+    position = "bottomleft",
+    primaryLengthUnit = "meters",
+    primaryAreaUnit = "sqmeters",
+    activeColor = "#3D535D",
+    completedColor = "#7D4479") %>%# mesure de la distance entre les points
+# add a layers control
+  addLayersControl(
+    baseGroups = c(
+      "OpenStreetMap", "Stamen.Toner",
+      "Stamen.Terrain", "Esri.WorldStreetMap",
+      "Wikimedia", "CartoDB.Positron", "Esri.WorldImagery"
+    ),
+    # position it on the topleft
+    position = "topright"
+  )%>%
+  addDrawToolbar()%>%
+  addMeasurePathToolbar(options = measurePathOptions(imperial = FALSE,
+                                                     minPixelDistance = 100,
+                                                     showDistances = FALSE,
+                                                     showOnHover = TRUE)) 
+carte
+```
+## Tableau resumant les caracteristiques de chaque pays
+```{r}
+leaflet(uemoa_sf, height = '400px') %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(color = ~palette_couleurs(uemoa_sf$pop_est), fillOpacity = 0.7,
+              popup = ~leafpop::popupTable(uemoa_sf,                            #<<
+                                           zcol = c("name", "area", "pop_est"), #<<
+                                           row.numbers = FALSE, feature.id = FALSE)) #<<
+```
+
+
+# ggiraph {.tabset} 
+*ggiraph* est un package qui permet de créer des graphes interactifs, notamment via l’ajout de tooltips, d’animations, et d’actions JavaScript. Il dispose notamment d’une fonction permettant de réaliser des cartes interactives.
+```{r echo=FALSE,message=FALSE,warning=FALSE,comment=""}
+library(ggiraph)
+library(ggplot2)
+world <- sf::st_as_sf(rnaturalearth::countries110)
+internet_usage <- read.csv2("Data/usages_internet.csv")
+
+africa <- dplyr::filter(world, REGION_UN=='Africa') %>%
+  dplyr::left_join(internet_usage %>% dplyr::select(
+    `Country.Code`, `X2021`
+  ) %>% dplyr::rename(ISO_A3=`Country.Code`, internet.usage.2021=`X2021`),
+  by = 'ISO_A3') %>%
+  st_transform(crs="+proj=laea +lon_0=18.984375")
+
+africa.spdf <- methods::as(africa, 'Spatial')
+africa.spdf@data$id <- row.names(africa.spdf@data)
+
+africa <- suppressMessages(broom::tidy(africa.spdf))
+africa <- dplyr::left_join(africa, africa.spdf@data, by='id')
+```
+
+```{r fig.width=10, fig.height=8, fig.align='center'}
+g <- ggplot(africa) +
+  geom_polygon_interactive(
+    color='black',
+    aes(long, lat, group=group, fill=internet.usage.2021,
+        tooltip=sprintf("%s<br/>%s",ISO_A3,internet.usage.2021))) +
+ ggthemes::theme_map() +
+  colormap::scale_fill_colormap(
+    colormap=colormap::colormaps$copper, reverse = T) +
+  labs(title=' Usage Internet en Afrique en 2021',
+       caption='Source: World Bank Open Data.')
+
+girafe(code=print(g))
+```
+
+
+# Rasters {.tabset}
+
+## création raster
+```{r echo=FALSE ,message=FALSE,warning=FALSE,comment=""}
+base_pays <- suppressMessages(st_read("Data/base_pays.shp"))
+base_acled <- suppressMessages(st_read("Data/base_acled.shp"))
+
+```
+
+
+
+```{r  message=FALSE,warning=FALSE,comment="" }
+
+resolution <- 10/111
+base_raster2 <- raster(base_pays, res = resolution)
+#rasterize convertit une couche vectorielle en raster
+base_raster3 <-rasterize(base_acled, base_raster2, field = "id", fun="count",background =0,
+mask=F, update=T, updateValue="all", filename="", na.rm=TRUE)
+base_raster3 <- mask(base_raster3, base_pays)
+
+```
+
+# affichage
+```{r}
+palette_couleurs <- colorRampPalette(c("peachpuff", "darkorange", "darkred"))
+plot(base_raster3, col= palette_couleurs(100))
+
+
+```
+# Representation
+
+```{r  message=FALSE,warning=FALSE,comment=""}
+library(leaflet)
+# Créer une carte leaflet
+map <- leaflet() %>% addTiles()%>%
+    addProviderTiles("OpenStreetMap.Mapnik") %>%
+    addRasterImage(base_raster3, opacity = 0.7,project =FALSE ) 
+ 
+# Afficher la carte interactive avec la légende
+
+map
+```
+# Lecture d'un raster
+On peut télécharger différents rasters (mais également des objets vectoriels) avec la commande `getData` du package `raster`.
+Par exemple, pour extraire le raster de l’altitude du sénégal, on utilise
+```{r message=FALSE,warning=FALSE,comment="" }
+
+alt_sen <- elevation_30s(country = "SEN", path = tempdir())
+```
+
+Representation 
+```{r message=FALSE,warning=FALSE,comment=""}
+plot(alt_sen)
+```
+
+```{r message=FALSE,warning=FALSE,comment="" }
+tm_shape(alt_sen) + tm_raster()
+```
+
+```{r echo=FALSE}
+rm(list = ls())
+```
+
+# BIBLIOGRAPHIE ET WEBOGRAPHIE
+1-Nicolas Casajus, *ANALYSES SPATIALES SOUS R* </br>
+2-Timothée Giraud,Hugues Pecout, *Cartographie avec R* </br>
+3-Nicolas Roelandt, *Données géospatiales et cartographie avec R*</br> 
+4-Kim Antunez, *Données géographiques et cartographie sous R :Manipulation de données communales en historique et réalisation de cartes* </br>
+5- Nicolas Lambert & Ronan Ysebaert, *FAIRE DES CARTES AVEC R : La frontière États-Unis - Mexique* </br>
+6- Philippe Marchand, *Introduction au traitement des données géospatiales avec R*</br> 
+7-https://r-charts.com/spatial/interactive-maps-leaflet/, *Interactive maps with leaflet in R* </br>
+8-https://r.geocompx.org/foreword-1st-edition, *Geocomputation with R* </br>  

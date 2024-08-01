@@ -1,0 +1,531 @@
+---
+title: ''
+mainfont: Arial
+geometry: left = 2.5cm, right = 2cm, top = 2cm, bottom = 2cm
+output:
+  pdf_document:
+    latex_engine: xelatex
+    highlight: zenburn
+  html_document:
+    df_print: paged
+header-includes:
+- \usepackage{tcolorbox}
+- \usepackage{float}
+- \usepackage{sectsty}
+- \usepackage{paralist}
+- \usepackage{setspace}\spacing{1.5}
+- \usepackage{fancyhdr}
+- \usepackage{lastpage}
+- \usepackage{dcolumn}
+- \usepackage{natbib}\bibliographystyle{agsm}
+- \usepackage[nottoc, numbib]{tocbibind}
+- \usepackage[toc,title,page]{appendix}
+- \usepackage{xcolor}
+- \usepackage{framed}
+- \usepackage{fontspec}
+- \fancyhead[R]{\nouppercase{\leftmark}}
+- \pagestyle{fancy}
+- \renewcommand\footrulewidth{1pt}
+- "\\fancyfoot[L]{\\textcolor{blue}{\\textbf{CARTOGRAPHIE AVEC R}}}"
+- \fancyfoot[C]{\textbf{Page \thepage/\pageref{LastPage}}}
+- \fancyfoot[R]{\textcolor{orange}{}}
+- \setlength{\headheight}{15pt}
+fontsize: 12pt
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(tinytex.verbose = TRUE)
+```
+
+\allsectionsfont{\centering}
+\subsectionfont{\raggedright}
+\subsubsectionfont{\raggedright}
+\thispagestyle{empty}
+
+\begin{tcolorbox}[colback=white,colframe=blue]
+
+\begin{centering}
+
+\vspace{0cm}
+
+```{r ANSD_logo, echo=F, out.width="20%"}
+knitr::include_graphics("Images/ansd.png")
+```
+\vspace{0cm}
+
+\Large
+----------------------------------------------------------------------\newline
+{\fontsize{16pt}{14pt}\textbf {AGENCE NATIONALE DE LA STATISTIQUE ET DE LA DEMOGRAPHIE}}
+----------------------------------------------------------------------\newline 
+\vspace{0cm}
+```{r ensae_logo, echo=F, out.width="16%"}
+knitr::include_graphics("Images/ensae.jpg")
+```
+\vspace{0cm}
+
+\Large
+{\fontsize{14pt}{14pt}\bf ECOLE NATIONALE DE LA STATISTIQUE ET DE L'ANALYSE ECONOMIQUE PIERRE NDIAYE}
+
+\vspace{0.5cm}
+
+\Large
+
+\doublespacing
+\begin{center}
+  \setlength{\fboxrule}{1pt} % Épaisseur de la bordure
+  \setlength{\fboxsep}{9pt} % Espace entre la bordure et le contenu
+  \colorbox{yellow}{ % Couleur de fond
+    \begin{minipage}{0.8\textwidth}
+ {\bf CARTOGRAPHIE AVEC R}
+    \end{minipage}
+  }
+\end{center}
+
+\vspace{0.3cm}
+
+\normalsize
+\singlespacing
+Par
+
+\vspace{0.4 cm}
+
+\Large
+
+{\bf KPAKOU M'Mounéné} \\
+{\bf NDIAYE Saran} \\
+{\bf TRAORE Mohamed}
+
+\vspace{0.5 cm}
+Chargé du cours:
+\vspace{0.5 cm}
+
+\Large
+
+{\bf Mr. Aboubacar HEMA}
+
+\vspace{0.4 cm}
+{\fontsize{12pt}{14pt}\bf Research Analyst}
+
+\vspace{0.5cm}
+
+\normalsize
+
+\end{centering}
+\end{tcolorbox}
+\newpage
+
+
+# Libraries nécessaires
+```{r echo=FALSE,message=FALSE,warning=FALSE,comment=""}
+library(sp)
+library(sf)
+library(tmap)
+library(dplyr)
+library(ggplot2)
+library(gouvdown) #remotes::install_github("spyrales/gouvdown")
+library(ggspatial)
+library(ggiraph)
+library(mapsf)
+library(leaflet)
+library(leaflet.extras)
+library(raster)
+library(geodata) #install.packages("geodata")
+```
+
+# \color{blue}{\textbf{ Introduction}}
+Cet exposé nous enseigne une gamme de compétences spatiales, notamment : lire, écrire et manipuler des formats de fichiers géographiques ; créer des cartes statiques et interactives.
+il s'agit également de comprendre la structure des ensembles de données géographiques et des logiciels utilisés pour les traiter.
+il existe de nombreuses façons de gérer les données géographiques dans R, avec des dizaines de packages dans ce domaine. 
+![](Images/workflow.png)
+
+# \color{blue}{\textbf{ I. Concepts de base en cartographie}}
+
+## \color{blue}{\textbf{1. Données géographiques avec R}}
+###  a. Présentation
+Ce chapitre fournira des explications sur les modèles de données géographiques fondamentaux : vectoriels et raster.  
+-**Le modèle de données vectorielles** représente le monde à l'aide de points, de lignes et de polygones. Ceux-ci ont des frontières discrètes et bien définies, ce qui signifie que les ensembles de données vectorielles ont généralement un haut niveau de précision.
+-**Le modèle de données raster** divise la surface en cellules de taille constante. Les rasters regroupent des caractéristiques spatialement spécifiques à une résolution donnée.
+![vecteur vs raster](Images/vector_raster.png)
+\newline
+La figure ci dessus représente une même entité géographique dans l’un ou l’autre de ces formats.
+
+### **b. Données vectorielles**
+
+Le modèle de données vectorielles géographiques est basé sur des points situés dans un système de référence de coordonnées (CRS). Les points peuvent représenter des éléments autonomes (par exemple, l'emplacement d'un arrêt de bus) ou ils peuvent être reliés entre eux pour former des géométries plus complexes telles que des lignes et des polygones.
+La figure ci dessous représente dans une même figure ces trois types d’objets.
+
+![vector](Images/vector.jpg)
+
+Il existe plusieurs formats possibles pour stocker des données spatiales:   
+-**Format Shapefile **   
+
+Pour ce type de fichier, les données spatiales sont stockées dans plusieurs
+fichiers qui portent le même nom avec des extensions différentes. Le fichier qui porte l’extension **.shp** contient toute l’information liée à la géométrie des unités spatiales. Il doit être nécessairement accompagné de deux autres fichiers portant l’extension :  
+• **.dbf**, qui contient les données attributaires relatives aux données spatiales,  
+• **.shx**, qui contient les index des unités spatiales (fichier contenant des données sous forme d’octets.  
+Il existe parfois d’autres fichiers optionnels portant l’extension **.sbn**, **.sbx**, etc. qui sont également associés au fichier principal.   
+On notera que tous ces fichiers portent le même nom mais ont une extension différente.  
+Un fichier optionnel qui nous intéressera plus particulièrement est le fichier portant l’extension **.prj**, car ce fichier contient toute l’information relative sur le système de coordonnées.  
+-**Format GeoJSON**
+
+Il s’afit d’un format de données spatiales de plus en plus utilisé dont on
+présente ci-dessous l’extrait d’un fichier. Il est issu de la syntaxe JSON. Il a l’avantage de contenir l’information (stockée dans un langage tout à fait compréhensible) dans un seul fichier : c’est-à-dire qu’on retrouve dans le même fichier l’information géographique sur les objets, l’information statistique observée sur ces objets et enfin le système de projection utilisé.
+
+Nous utilisons le package sf pour l'analyse de données vectorielles.
+Le package sf est incontournable pour l'analyse des données vectorielles spatiales dans R. sf peut représenter tous les types de géométrie vectorielle courants (les classes de données raster ne sont pas prises en charge par sf ) : points, lignes, polygones et leurs versions « multi » respectives (qui regroupent des entités du même type en une seule entité).  
+Une question plus spécifique du point de vue de R est « pourquoi utiliser le package sf » ? Les raisons sont nombreuses (liées aux avantages du modèle à fonctionnalités simples) :  
+•	Lecture et écriture rapides des données   
+•	Performances de traçage améliorées  
+•	les objets sf peuvent être traités comme des trames de données dans la plupart des opérations  
+•	les noms de fonctions sf sont relativement cohérents et intuitifs (ils commencent tous par st_)  
+•	Les fonctions sf peuvent être combinées avec l' |>opérateur et fonctionnent bien avec la collection Tidyverse de packages R.  
+
+
+### **c. Données raster**
+Le modèle de données spatiales raster représente le monde avec une grille continue de cellules (souvent également appelées pixels). Ce modèle de données fait souvent référence à des grilles dites régulières, dans lesquelles chaque cellule a la même taille constante.  
+Contrairement aux données vectorielles, la cellule d'une couche raster ne peut contenir qu'une seule valeur.La valeur peut être continue ou catégorielle.   
+Les cartes raster représentent généralement des phénomènes continus tels que l'élévation, la température, la densité de population ou les données spectrales.  
+
+Le format le plus courant pour sauvegarder ces fichiers sont par exemple le format *GeoTIFF*. En général, ce type de données est volumineux, surtout losque la résolution d’une image (c’est-à-dire le nombre de pixels) est élevée. 
+
+![raster](Images/Raster.png)
+\newline
+
+### d. Systèmes de coordonnées de référence
+
+Les types de données spatiales vectorielles et raster partagent des concepts intrinsèques aux données spatiales. Le plus fondamental d’entre eux est peut-être le système de coordonnées de référence (CRS), qui définit la manière dont les éléments spatiaux des données sont liés à la surface de la Terre (ou à d’autres corps).  
+Les systèmes de référence de coordonnées géographiques identifient n'importe quel emplacement sur la surface de la Terre à l'aide de deux valeurs : la longitude et la latitude  
+
+Sur R, pour créer un CRS on utilise la fonction CRS() du package sp. Par exemple :
+```{r eval=FALSE}
+library(sp)
+crs <- CRS("+proj=utm +datum=WGS84 +ellps=WGS84")
+```
+
+•Le paramètre **+proj** spécifie la projection à utiliser, qui détermine comment les coordonnées géographiques sont transformées en coordonnées cartographiques.  
+• **+datum** spécifie le datum géodésique, qui définit l’origine, l’orientation et l’échelle du
+système de coordonnées par rapport à la Terre.  
+• **+ellps**, quant à lui, spécifie uniquement l’ellipsoïde de référence utilisé pour représenter la forme de la Terre.  
+
+**Identification du système de coordonnées (CRS) d’un objet sf**    
+-La fonction *st_crs()* permet d’identifier le système de coordonnées d’un objet sf.  
+```{r eval=FALSE}
+st_crs(objetspa)
+```
+**Modification du système de coordonnées (CRS) d’un objet sf**   
+On peut modifier le « CRS » d’un objet sf dès lors que celui-ci est absent ou incorrect.  
+```{r eval=FALSE}
+st_crs(objetspa)=newcrs
+```
+
+Pour convertir des données d’un CRS à un autre, on peut utiliser la fonction *st_transform()*  
+```{r eval=FALSE}
+transformed_data <- st_transform(data, crs_new)
+```
+
+## \color{blue}{\textbf{2. Opérations sur les données spatiales}}  
+### **a. Passage de données non spatiales à des données de classe “Spatial”**  
+Nous allons utiliser dans la base de données *ACLED*  
+```{r comment=""}
+acled_df <- read.csv("Data/ACLED-Western_Africa.csv")
+head(acled_df, 2)
+```
+
+
+Dans le cas de données de type vectoriel, on utilisera les packages *sp*  et *sf*. Ces deux packages permettent de définir des classes d’objet “Spatial” (norme sp v.s. sf) et des fonctions associées qui permettent de faire du traitement de données adaptés et optimisés pour ce type de format.  
+Dans le cas de données de type raster, on utilisera essentiellement le package *raster* , qui devrait être remplacé petit à petit par le package *terra*.  
+
+### \color{blue}{\textbf{b. Classe sp}}
+
+Pour passer d’un objet de classe data.frame, à un objet de classe “Spatial” sp, il suffit d’utiliser la fonction **coordinates()** et de préciser avec le symbole ~ quelle sont les variables de géolocalisation. Par exemple :  
+
+```{r comment=""}
+acled_sp <- acled_df
+coordinates(acled_sp) <- ~longitude + latitude
+class(acled_sp)
+```
+Dans ce cas, comme les objets géographiques correspondent à des points, la classe d’objet est la classe **SpatialPointsDataFrame**.    
+Les deux autres classes d’objets étant **SpatialLinesDataFrame** (pour les objets de type ligne brisée comme les routes) et **SpatialPolygonsDataFrame** (pour les objets de type polygone comme les contours administratifs). Nous appelerons par la suite la norme “Spatial” ces trois type d’objets.   
+Pour afficher les attributs de la classe sp (objet de classe S4), on utilise la fonction *str()*
+
+```{r comment=""}
+str(acled_sp)
+```
+Un objet SpatialPointsDataFrame est constitué des 5 attributs suivants :
+• **data** : le jeu de données au format data.frame,  
+• **coords.nrs** : indique le numéro des colonnes indiquant les localisations géographiques dans l’objet de départ ,  
+• **coords** : les variables de géolocalisation,  
+• **bbox** (pour “bounding box” en anglais) : une matrice qui indique les coordonnées de la fenêtre qui permet d’englober l’ensemble des objets spatiaux,   
+• **proj4string** : un objet de classe CRS qui détermine le CRS utilisé pour représenter les objets spatiaux.  
+Pour accéder aux différents élements qui constituent ce type d’objet, on utilise le symbole @. Par exemple, pour accéder uniquement au data.frame, on fait :  
+ 
+```{r}
+head(acled_sp@data, 2)
+```
+```{r}
+head(acled_sp@coords, 2)
+```
+### \color{blue}{\textbf{c. Classe sf}}
+Pour transformer un objet de classe data.frame (ou alors de type “Spatial”, c’est-à-dire **SpatialPointsDataFrame**, **SpatialLinesDataFrame** ou **SpatialPolygonsDataFrame**) en objet de classe sf, on utilise la fonction *st_as_sf()* de la manière suivante :  
+```{r comment=""}
+acled_sf <- st_as_sf(acled_df, coords = c("longitude", "latitude"))
+class(acled_sf)
+```
+La structure de cet objet sf est comme celle d’un data.frame auquel on a ajouté une colonne geometry propre à l’information spatiale :  
+```{r comment="" }
+head(acled_sf,2)
+```
+On distingue les géometries suivantes:  
+•**POINT** : un point unique,  
+• **LINESTRING** : une séquence de points reliées par des traits,  
+• **POLYGON** : une séquence de points définissant un polygone,  
+• **MULTIPOINT** : plusieurs points,  
+• **MULTILINESTRING** : plusieurs lignes,  
+• **MULTIPOLYGON** : plusieurs polygones  
+• **GEOMETRYCOLLECTION** : un mélange des géométries vues précédemment.  
+![geometries](Images/geometries.png)
+\newline
+
+## \color{blue}{\textbf{3. Manipulation des fichiers de données spatiales}}  
+
+Pour manipuler les objets spatiaux,il existe un certain nombre de fonctions qui peuvent y être appliquées. Pour connaître ces fonctions :  
+-**Objets sp**
+```{r comment=""}
+methods(class = "Spatial")
+```
+- **Objets sf**
+```{r comment="" }
+methods(class = "sf")
+```
+
+-**Objets raster**
+```{r}
+methods(class = "raster")
+```
+## \color{blue}{\textbf{4. Union, intersection sur les géométries }}
+Avec la norme sf, les fonctions qui peuvent être utiles pour travailler sur les géométries sont :  
+•	st_intersection(A, B) : l’intersection des géométries A et B  
+•	st_union(A, B) : l’union des géométries A et B  
+•	st_difference(A, B) : la géométrie de A auquel on enlève la géométrie de B  
+•	st_convex_hull(x) : détermine une enveloppe convexe de x  
+•	st_area(x) : détermine l’aire de x  
+•	st_buffer(x) : détermine un tampon de x.  
+
+### **a. Union simple**
+
+```{r message=FALSE,comment="",warning=FALSE}
+sen <- suppressMessages(st_read("Data/gadm41_SEN_shp/gadm41_SEN_2.shp"))
+sen_u <- st_union(sen)
+plot(st_geometry(sen_u), col="lightblue",main = "Carte du sénégal")
+plot(st_geometry(sen_u), add=T, lwd=2, border = "red")
+
+```
+
+### **b. Zone tampon**
+
+```{r message=FALSE,comment="",warning=FALSE}
+Diourbel <- sen[sen$NAME_2 == "Diourbel", ]
+Diourbel_b <- st_buffer(x = Diourbel, dist = 5000)
+plot(st_geometry(sen), col = "lightblue",main = "Carte du sénégal/ Diourbel avec un buffer de 5km")
+plot(st_geometry(Diourbel), add = TRUE, lwd = 2)
+plot(st_geometry(Diourbel_b), add = TRUE, lwd = 2, border = "red")
+
+```
+
+
+### **c. Intersection de polygones** 
+Pour ce faire on crée un polygone </br>
+```{r }
+m <- rbind(c(-16.5, 13.5), c(-16.5, 14.5), c(-15.5, 14.5), 
+           c(-15.5, 13.5), c(-16.5, 13.5))
+polygone <- st_sf(st_sfc(st_polygon(list(m))), crs = st_crs(sen))
+plot(st_geometry(sen))
+plot(polygone, border = "red", lwd = 2, add = TRUE)
+```
+
+- La fonction `	st_intersection()` extrait la partie de mtq qui s’intersecte avec le polygone créé.
+```{r message=FALSE,comment="",warning=FALSE}
+inter <- st_intersection(x = sen, y = polygone)
+plot(st_geometry(sen),main = "Intersection du sénégal avec le polygone")
+plot(st_geometry(inter), col = "red", border = "green", add = TRUE)
+```
+
+
+# \color{blue}{\textbf{II. Cartes statiques}} 
+
+## \color{blue}{\textbf{1 .Avec `ggplot 2`}}
+
+### **a. Les cartes choroplèthe**
+
+
+Le premier exemple que nous allons pouvoir voir, c'est une carte choroplèthe, càd en aplat de couleur, adaptée à la représentation d'indicateurs intensifs (%, densité...).
+
+```{r message=FALSE, echo=FALSE, eval=TRUE, warning=FALSE}
+
+# Load the World dataset
+data("World")
+
+# Create maps with different projections
+wgs_84 <- tm_shape(World, projection = st_crs(4326)) + 
+  tm_polygons() + 
+  tm_layout("Le monde en projection WGS84", inner.margins = c(0, 0, .1, 0), title.size = .8)
+
+robin <- tm_shape(World, projection = st_crs("+proj=wintri")) + 
+  tm_polygons() +
+  tm_layout("Le monde en projection Winkel-Tripel", inner.margins = c(0, 0, .1, 0), title.size = .8)
+
+# Ensure the 'name' column is treated as a character vector
+World$name <- as.character(World$name)
+
+# Filter for specific countries
+uemoa_sf <- World %>% 
+  filter(name %in% c("Mali", "Senegal", "Benin", "Burkina Faso", "Togo", "Niger", "Guinea-Bissau", "Cote d'Ivoire"))
+# calcul des indicateurs a représenter
+  uemoa_sf = mutate(uemoa_sf, poids_pop_a_part = pop_est / sum(pop_est) * 100)
+
+```
+
+
+```{r message=FALSE, cart_choro, fig.height=5, fig.width=12, cache=TRUE,comment="",warning=FALSE}
+library(ggplot2)
+ggplot(data = uemoa_sf) +
+  geom_sf(mapping = aes(fill = pop_est_dens), color = "white")
+```
+
+### **b. Les cartes à ronds proportionnels**
+- Utilisation de La fonction  `stat_sf_coordinates()`  permet d'extraire les coordonnées d'un objet 'sf' avant de produire le calque.
+
+
+```{r message=FALSE, cart_prop, fig.height=5, fig.width=12, cache=TRUE,comment="",warning=FALSE}
+library(ggplot2)
+carte_ronds_prop <- ggplot(data = uemoa_sf) +
+  geom_sf() +
+  stat_sf_coordinates(mapping = aes(size = pop_est, color = poids_pop_a_part))
+
+carte_ronds_prop
+
+```
+
+#### **Ajout du titre ,legende,flêche pole nord...**  
+- *Utilisation des fonction *:  
+-`labs()` pour les labels   
+-`title` pour le tire, `subtitle` pour  le sous-titre et `caption` le bas de page .   
+-`guide_xx()` et `guides()` permettent de modifier finement la légende.   
+-`annotation_scale()` et `annotation_north_arrow()` pour ajouter l' échelle et la flèche du nord.  
+
+```{r message=FALSE, echo=FALSE, eval=TRUE, fig.height=5, fig.width=10, warning=FALSE}
+
+carte_ronds_prop2 <- carte_ronds_prop +
+  labs(
+    title = "Population par pays",
+    size = "Nombre d'habitants",
+    color = "Poids population\ncomptée à part (%)"
+  ) +
+  guides(color = guide_legend(
+    direction = "horizontal",
+    order = 1,
+    title.position = "top",
+    title.hjust = 0.5,
+    nrow = 1,
+    label.position = "bottom"
+  )) +
+  theme(legend.position = "left")+
+  scale_color_gouv_continuous(palette = "pal_gouv_i", reverse = FALSE) +
+  scale_size_continuous(labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
+  annotation_scale(location = "br", line_width = .5) +
+  annotation_north_arrow(location = "tl", height = unit(0.7, "cm"), width = unit(0.7, "cm"))
+
+carte_ronds_prop2
+```
+
+
+## 2 .Avec mf_map 
+
+La fonction `mf_map()` est la fonction centrale du package `mapsf` . Elle permet de réaliser la
+plupart des représentations usuelles en cartographie. Ces arguments principaux sont :  
+• **x**, un objet sf ;  
+• **var**, le nom de la variable à représenter ;  
+• **type**, le type de représentation.  
+Utilisée sans précision de type, la fonction `mf_map()` affche simplement les couches spatiales.  
+
+### **a. Carte de symboles proportionnels**  
+
+```{r}
+# uemoa
+mf_map(x = uemoa_sf)
+# Symboles proportionnels
+mf_map(
+x = uemoa_sf,
+var = "pop_est",
+type = "prop",
+leg_title = "Population totale"
+)
+mf_label(
+x = uemoa_sf,
+var = "name",
+col= "black",
+halo = TRUE,
+overlap = FALSE,
+lines = FALSE
+)
+# Titre
+mf_title("Distribution de la population dans uemoa")
+```
+
+### **b. Les cartes choroplèthe**
+
+```{r}
+mf_map(x = uemoa_sf,
+var = "pop_est_dens",
+type = "choro",
+breaks = "quantile",
+nbreaks = 6,
+pal = "Dark Mint",
+lwd = 1,
+leg_title = "Densité de population",
+leg_val_rnd = 0,
+leg_pos = "topleft"
+
+)
+mf_label(
+x = uemoa_sf,
+var = "name",
+col= "black",
+halo = TRUE,
+overlap = FALSE,
+lines = FALSE
+)
+mf_title("Distribution de la population dans l'uemoa")
+```
+
+## \color{blue}{\textbf{3.Avec `tmap`}}
+La syntaxe de `tmap` est similaire à celle de ggplot2. Cela inclut une séparation stricte entre les données et l’esthétique. Au début, `tm_shape()`  est transmis un ensemble de données, suivi d'un ou plusieurs niveaux qui définissent le type d'affichage.  
+Les exemples sont `tm_fill()`et `tm_dots()`pour tracer des données sous forme de polygones ou de points.  
+
+### **Exemple de graphique avec `tmap`**
+
+```{r}
+library(tmap)
+# plot
+tm_shape(uemoa_sf) +
+  tm_polygons("pop_est_dens", palette = "-Blues", 
+    title = "Densité de population", contrast = 0.7, border.col = "black", id = "name") +
+  tm_text("name", col = "yellow") 
+```
+
+# \color{blue}{\textbf{III- cartes interactives}}
+                       (confère Presentation.Rmd)   
+Nous allons presentez certains packages permattant la representation interactive des cartes  
+
+## \color{blue}{\textbf{1. ggiraph }}
+
+*ggiraph* est un package qui permet de créer des graphes interactifs, notamment via l’ajout de tooltips, d’animations, et d’actions JavaScript. Il dispose notamment d’une fonction permettant de réaliser des cartes interactives.  
+
+## \color{blue}{\textbf{2. cartes interactives avec leaflet }}
+           (confère Presentation.Rmd)
+
+La représentation de données spatiales se veut de plus en plus interactive, et quoi de mieux qu’une carte pour illustrer son propos lorsque l’on souhaite transmettre une information géographique ?  
+Nous allons utiliser le package *leaflet*  
+    
+# \color{blue}{\textbf{IV- Raster}}
+             (confère Presentation.Rmd)
